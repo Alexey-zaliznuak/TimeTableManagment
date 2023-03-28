@@ -130,10 +130,6 @@ class Lesson(EventModel):
         on_delete=models.CASCADE,
     )
 
-    day = models.SmallIntegerField("День в расписании")
-    start_time = models.TimeField("Начало урока")
-    duration = models.TimeField("Продолжительность урока")
-
     subgroup = models.SmallIntegerField(
         "Подгруппа(ы)",
         choices=SubGroupChoices.choices,
@@ -141,6 +137,18 @@ class Lesson(EventModel):
     )
 
 class Activity(EventModel):
+    name = models.CharField(
+        "Наименование мероприятия",
+        max_length=150,
+        null=True,
+        blank=True,
+    )
+    describe = models.TextField(
+        "Описание мероприятия",
+        max_length=500,
+        null=True,
+        blank=True,
+    )
     groups = models.ManyToManyField(
         Group,
         related_name='activities',
@@ -162,3 +170,6 @@ class Activity(EventModel):
         blank=True,
         null=True,
     )
+
+    class Meta:
+        verbose_name_plural = 'Activities'

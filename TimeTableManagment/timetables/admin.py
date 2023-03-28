@@ -9,6 +9,7 @@ from .models import (
     Group,
     LessonType,
     ClassRoom,
+    Activity
 )
 
 def object_url(obj):
@@ -97,6 +98,7 @@ class LessonAdmin(admin.ModelAdmin):
         'groups_list',
         'teacher_link',
         'classroom_link',
+        'day',
         'start_time',
         'duration',
         'subgroup',
@@ -121,6 +123,46 @@ class LessonAdmin(admin.ModelAdmin):
 
     def classroom_link(self, obj):
         return object_url(obj.classroom)
+
+    def groups_list(self, obj):
+        return mark_safe("\n".join([object_url(g) for g in obj.groups.all()]))
+
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'describe',
+        'groups_list',
+        'teacher_link',
+        'classroom_link',
+        'day',
+        'start_time',
+        'duration',
+    )
+    search_fields = (
+        'name',
+        'describe',
+        'teacher',
+        'classroom',
+        'day',
+        'start_time',
+        'duration',
+    )
+    list_filter = ('start_time','classroom',)
+    empty_value_display = '-отсутствует-'
+
+    # костыль, убрать когда буду делать отедльно лабы лекйии и т.п
+    # просто чтобы было поле как раз для ссылки на сам урок
+    def teacher_link(self, obj):
+        teacher = obj.teacher
+        if teacher:
+            return object_url(teacher)
+
+    def classroom_link(self, obj):
+        classroom = obj.classroom
+        if classroom:
+            return object_url(classroom)
 
     def groups_list(self, obj):
         return mark_safe("\n".join([object_url(g) for g in obj.groups.all()]))
