@@ -1,15 +1,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from users.models import User, ROLE_PREFIX
-from datetime import datetime
-from django.contrib.auth.models import AbstractUser
-from django.contrib.contenttypes.models import ContentType
 from timetables.apps import TimetablesConfig
+from django.core.validators import MinValueValidator, MaxValueValidator
 from multiselectfield import MultiSelectField
 
 
 APP_NAME = TimetablesConfig.name
-
+WORK_DAYS = 12  # 2 weeks - 2 sundays
 
 DAYS = (
     ('monday', 'monday'),
@@ -32,7 +30,13 @@ class RoleModel(models.Model):
         abstract = True
 
 class EventModel(models.Model):
-    day = models.SmallIntegerField("День в расписании")
+    day = models.SmallIntegerField(
+        "День в расписании",
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(12),
+        ],
+    )
     start_time = models.TimeField("Время начала")
     duration = models.TimeField("Продолжительность")
 
@@ -40,7 +44,7 @@ class EventModel(models.Model):
         abstract = True
 
 class Group(models.Model):
-    name = models.CharField('Группа', max_length=64)
+    name = models.CharField('Наименование группы', max_length=64, unique=True)
 
     def __str__(self) -> str:
         return self.name
@@ -50,6 +54,7 @@ class Student(RoleModel):
         User,
         models.CASCADE,
         related_name=ROLE_PREFIX + 'Student',
+        unique=True,
     )
     group = models.ForeignKey(
         Group,
@@ -66,6 +71,7 @@ class Teacher(RoleModel):
         User,
         models.CASCADE,
         related_name=ROLE_PREFIX + 'Teacher',
+        unique=True,
     )
     work_days = MultiSelectField(
         "Рабочие дни",
@@ -85,17 +91,22 @@ class Methodist(RoleModel):
     user = models.ForeignKey(
         User,
         models.CASCADE,
-        related_name=ROLE_PREFIX + 'Methodist'
+        related_name=ROLE_PREFIX + 'Methodist',
+        unique=True,
     )
 
 class ClassRoom(models.Model):
-    number = models.CharField("Аудитория", max_length=128)
+    number = models.CharField("Аудитория", max_length=128, unique=True)
 
     def __str__(self) -> str:
         return self.number
 
 class LessonType(models.Model):
-    name = models.CharField('Наименование дисциплины', max_length=64)
+    name = models.CharField(
+        'Наименование дисциплины',
+        max_length=64,
+        unique=True
+    )
 
     def __str__(self) -> str:
         return self.name
@@ -135,6 +146,10 @@ class Lesson(EventModel):
         choices=SubGroupChoices.choices,
         default=SubGroupChoices.ALL,
     )
+
+    def clean(self) -> None:
+        # TODO
+        return super().clean()
 
 class Activity(EventModel):
     name = models.CharField(
