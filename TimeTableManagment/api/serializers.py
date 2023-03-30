@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from rest_framework import fields
+from timetables.models import DAYS
 from timetables.models import (
     ClassRoom,
     LessonType,
@@ -48,6 +50,7 @@ class StudentsSerializer(serializers.ModelSerializer):
 
 
 class TeachersSerializer(serializers.ModelSerializer):
+    work_days = fields.MultipleChoiceField(choices=DAYS)
     class Meta:
         model = Teacher
         fields = '__all__'

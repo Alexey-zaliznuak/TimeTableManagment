@@ -18,15 +18,23 @@ class User(AbstractUser):
             raise ValidationError('uncorrect username')
 
     @property
-    def role(self):
+    def roles_fields(self):
+        roles = []
         for rel in self._meta.related_objects:
             if rel.related_name and rel.related_name.startswith(ROLE_PREFIX):
-                value = self.__getattribute__(rel.related_name).first()
-                if value:
-                    return {
-                        'name': rel.related_name[len(ROLE_PREFIX):],
-                        'value': value
-                    }
+                roles.append(rel.related_name)
+
+        return roles
+
+    @property
+    def role(self):
+        for related_name in self.roles_fields:
+            value = self.__getattribute__(related_name).first()
+            if value:
+                return {
+                    'name': related_name[len(ROLE_PREFIX):],
+                    'value': value
+                }
 
     @property
     def is_methodist(self) -> bool:
@@ -37,7 +45,7 @@ class User(AbstractUser):
         return self.role['name'] == METHODIST
 
     @property
-    def can_edit_all_users(self) -> bool:
+    def can_edit_all(self) -> bool:
         return (
             self.is_superuser
             or self.is_staff

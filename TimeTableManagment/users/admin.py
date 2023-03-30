@@ -11,9 +11,14 @@ admin.site.unregister(Group)
 
 @admin.register(User)
 class MyUserAdmin(UserAdmin):
-    list_display = ('username', 'first_name', 'last_name', 'role_object')
+    list_display = ('pk', 'username', 'password', 'first_name', 'last_name', 'role_object')
     empty_value_display = '-отсутствует-'
 
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (None, {
+            'fields': ('email', ),
+        }),
+    )
 
     def role_object(self, user):
         obj = user.role

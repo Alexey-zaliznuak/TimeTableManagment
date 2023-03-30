@@ -18,6 +18,7 @@ if frontend:
     urlpatterns += path(
         'frontend/',
         TemplateView.as_view(template_name='index.html'), name='frontend')
+
     urlpatterns += static(
         settings.STATIC_FRONTEND_URL,
         document_root=settings.STATIC_FRONTEND_ROOT
