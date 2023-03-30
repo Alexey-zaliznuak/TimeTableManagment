@@ -19,6 +19,7 @@ class MyUserAdmin(UserAdmin):
         obj = user.role
         if not obj:
             return
+        obj = obj.get('value')
         obj_name = obj._meta.object_name.lower()
 
         url = reverse(

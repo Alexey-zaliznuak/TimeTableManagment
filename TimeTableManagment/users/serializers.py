@@ -3,26 +3,25 @@ from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
+            'pk',
             'username',
             'email',
             'first_name',
             'last_name',
-            'profession',
-            'object_id',
+            'role',
         ]
+        read_only_fields = ('role',)
 
-    def update(self, user, validated_data):
-        for key, value in validated_data.items():
-            if (
-                key in ['proffesion', 'object_id']
-                and not user.can_edit_default_content
-            ):
-                value = user.role
+    def get_role(self, user):
+        role = user.role
 
-            user.__setattr__(key, value)
+        if role:
+            role['value'] = role['value'].pk
+            return role
 
-        user.save()
-        return user
+        return 'отсутствует'

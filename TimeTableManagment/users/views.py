@@ -1,4 +1,5 @@
 from .models import User
+from .permissions import UsersPermission
 from .serializers import (
     UserSerializer,
 )
@@ -11,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = (IsAuthenticated)
+    permission_classes = (UsersPermission,)
     filter_backends = (filters.SearchFilter, )
     lookup_field = 'username'
     search_fields = ('username',)

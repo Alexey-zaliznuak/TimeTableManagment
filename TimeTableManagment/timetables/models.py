@@ -1,12 +1,11 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from users.models import User, ROLE_PREFIX
-from timetables.apps import TimetablesConfig
 from django.core.validators import MinValueValidator, MaxValueValidator
 from multiselectfield import MultiSelectField
+from django.core.exceptions import ValidationError
 
 
-APP_NAME = TimetablesConfig.name
 WORK_DAYS = 12  # 2 weeks - 2 sundays
 
 DAYS = (
@@ -25,6 +24,16 @@ class RoleModel(models.Model):
 
     def __str__(self) -> str:
         return self.user.username
+
+    def clean(self) -> None:
+        user_role = self.user.role
+        self_class_name = self.__class__.__name__.lower()
+
+        # if already has other role
+        if user_role and user_role.get('name').lower() != self_class_name:
+            raise ValidationError('This user already has role')
+
+        return super().clean()
 
     class Meta:
         abstract = True

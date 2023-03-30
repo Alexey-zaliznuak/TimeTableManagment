@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import AbstractUser
 
 
-MAX_ROLES_COUNT = 1
+METHODIST = 'Methodist'
 ROLES_APP = 'timetables'
 ROLE_PREFIX = 'role'
 
@@ -18,12 +18,30 @@ class User(AbstractUser):
             raise ValidationError('uncorrect username')
 
     @property
-    def role(self): #  magic
+    def role(self):
         for rel in self._meta.related_objects:
             if rel.related_name and rel.related_name.startswith(ROLE_PREFIX):
                 value = self.__getattribute__(rel.related_name).first()
                 if value:
-                    return value
+                    return {
+                        'name': rel.related_name[len(ROLE_PREFIX):],
+                        'value': value
+                    }
+
+    @property
+    def is_methodist(self) -> bool:
+        role = self.role
+        if not role:
+            return False
+
+        return self.role['name'] == METHODIST
+
+    @property
+    def can_edit_all_users(self) -> bool:
+        return (
+            self.is_superuser
+            or self.is_staff
+        )
 
     def __str__(self) -> str:
         if self.first_name and self.last_name:
