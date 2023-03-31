@@ -202,7 +202,6 @@ class Teacher(RoleModel):
         
         new_queryset += self.extra_busy_dates
 
-        print(new_queryset)
         if datetimes_intersect(
             lesson_datetime, new_queryset, max_intrsects_count=2,
         ):
@@ -267,7 +266,6 @@ class ClassRoom(models.Model):
             if event.classroom == self:
                 new_queryset.append(event.date_time)
 
-        print(new_queryset)
         if datetimes_intersect(
             lesson_datetime, new_queryset, max_intrsects_count=2,
         ):
