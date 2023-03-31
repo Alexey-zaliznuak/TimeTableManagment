@@ -52,9 +52,16 @@ python manage.py migrate
 ```
 python manage.py runserver
 ```
+- Unpack frontend_zip.zip
+- Install and run frontend
+```
+npm i
+npm start
+```
 
 ## API Reference
-To begin working with the API, you need to register a user and create a jwt token for him. How to do this will be demonstrated in the example. You can find all the information about the API on the website after its launch on the /api/swagger/ page.
+To begin working with the API, you need to register a user
+and create a jwt token for him. How to do this will be demonstrated in the example. You can find all the information about the API on the website after its launch on the /api/swagger/ page.
 #### User register
 
 ```http
@@ -77,8 +84,6 @@ To begin working with the API, you need to register a user and create a jwt toke
 | :--------  | :------- | :-------------------------- |
 | `username` | `string` | **Required** Your username  |
 | `password` | `string` | **Required** Your password  |
-
-
 
 ## Models description
 A brief description of the project models, detailed methods and fields can be found
