@@ -82,7 +82,7 @@ To begin working with the API, you need to register a user and create a jwt toke
 
 ## Models description
 A brief description of the project models, detailed methods and fields can be found
-[here](\TimeTableManagment\timetables\models.py)
+[here](/blob/main/TimeTableManagment/timetables/models.py)
 
 ### User
 The basic user model with a name, password, etc,
