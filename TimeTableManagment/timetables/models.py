@@ -1,15 +1,18 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from users.models import User, ROLE_PREFIX
 from django.core.validators import MinValueValidator, MaxValueValidator
 from multiselectfield import MultiSelectField
 from django.core.exceptions import ValidationError
+from django.apps import apps
+from timetables.apps import TimetablesConfig
+from utils import datetimes_intersect
 
 
+APP_NAME = TimetablesConfig.name
 WORK_WEEKS = 2  # 2 weeks - last sunday
 WORK_DAYS = WORK_WEEKS * 7 - 1
-
 DAYS = (
     ('monday', 'monday'),
     ('tuesday', 'tuesday'),
@@ -41,6 +44,9 @@ class RoleModel(models.Model):
         abstract = True
 
 class EventModel(models.Model):
+    # use for get query set for validate
+    events_models = ['Activity', 'Lesson']
+
     day = models.SmallIntegerField(
         "День в расписании",
         validators=[
@@ -51,39 +57,42 @@ class EventModel(models.Model):
     start_time = models.TimeField("Время начала")
     duration = models.TimeField("Продолжительность")
 
-    def clean(self):
-        self.validate_day()
-        self.validate_classrooms()
-        self.validate_teachers()
-        self.validate_groups()
+    # to overrides
+    geoups = None
+    subgroup = None
 
     def validate_day(self):
-        if not self.day % 6:
+        if self.day and not self.day % 7:
             raise ValidationError('It is sunday!')
 
-    def validate_groups(self):
-        # groups validation
-        for group in self.groups:
-            can_study, msg = group.can_study(self.date_time, self.subgroup)
-            if not can_study:
-                raise ValidationError(
-                    f'the group will not be able to show up - {msg}'
-                )
-
-    def validate_teachers(self):
-        # check that teacher can teach
-        can_teach, msg = self.teacher.can_teach(self.date_time)
-        if not can_teach:
+    def validate_groups(self, queryset, lesson_datetime, subgroup:int = 0):
+        if subgroup and self.groups.count() > 1:
             raise ValidationError(
-                'The teacher cannot conduct the lesson '
-                f'- {msg}'
+                'Uncrorrect value: you can select one group and subgroup '
+                'or select multiple groups without subgroups.'
             )
 
-    def validate_classrooms(self):
+        return
+        for group in self.groups.all():
+            group.can_study(self.date_time, lesson_datetime, subgroup)
+
+    def validate_teacher(self, queryset, dt):
+        # check that teacher can teach
+        self.teacher.can_teach(queryset, dt)
+
+    def validate_classroom(self, queryset, dt):
         # check that room is free on date of event
-        room_is_free, msg = self.classroom.is_free(self.date_time)
-        if not room_is_free:
-            raise ValidationError(f'classroom is not free - {msg}')
+        self.classroom.is_free(queryset, dt)
+
+    def get_events_queryset(self) -> list:
+        queryset = []
+
+        for model in self.events_models:
+            model = apps.get_model(APP_NAME, model)
+            queryset += model.objects.all()
+            # TODO add filter when create school model
+
+        return queryset
 
     @property
     def date_time(self) -> tuple[datetime, datetime]:
@@ -94,9 +103,11 @@ class EventModel(models.Model):
             year -= 1
 
         first_september = datetime(year=year, month=9, day=1)
-        start_dt = (now-first_september).days % WORK_DAYS + now.weekday() + 1
-        start_dt = now - timedelta(days = start_dt) #  first monday of timetable
+        first_tt_week = first_september - timedelta(days=first_september.weekday())
+        tt_day = (now-first_tt_week).days % (WORK_DAYS + 1)
 
+
+        start_dt = now - timedelta(days = tt_day + 1) #  first monday of timetable
         start_dt += timedelta(
             days=self.day,
             hours=self.start_time.hour,
@@ -115,11 +126,19 @@ class EventModel(models.Model):
 class Group(models.Model):
     name = models.CharField('Наименование группы', max_length=64, unique=True)
 
-    def can_study(self, dt:datetime, subgroup) -> tuple[bool, str]:
-        # TODO
-        can_study = True
-        msg = 'OK'
-        return can_study, msg
+    def can_study(self, queryset, lesson_datetime:datetime, subgroup):
+        "Raise validation error if group can`t study."
+        pass
+        # if lesson_datetime[0].strftime("%A").lower() not in self.work_days:
+        #     raise ValidationError(
+        #         'Teacher can`t work in this day'
+        #     )
+
+        # all_datetimes = [event.date_time for event in queryset]
+        # if datetimes_intersect(
+        #     lesson_datetime, all_datetimes, max_intrsects_count=2,
+        # ):
+        #     raise ValidationError('Teacher is already busy at this time.')
 
     def __str__(self) -> str:
         return self.name
@@ -154,15 +173,80 @@ class Teacher(RoleModel):
         blank=True,
         null=True,
     )
-    # TODO командировки, отпуска
 
-    def can_teach(self, lesson_datetime:datetime) -> tuple[bool, str]:
-        # TODO
-        msg = 'OK'
-        can_teach = True
-        # if lesson_dt not in methodic days
-        # if lesson_dt not in hlidays
-        return can_teach, msg
+    vacation_start = models.DateField(
+        "Дата начала отпуска", blank=True, null=True,
+    )
+    vacation_end = models.DateField(
+        "Дата окончания отпуска", blank=True, null=True,
+    )
+
+    business_trip_start = models.DateField(
+        'Дата начала командировки', blank=True, null=True,
+    )
+    business_trip_end = models.DateField(
+        'Дата окончания командировки', blank=True, null=True,
+    )
+
+    def can_teach(self, queryset, lesson_datetime:datetime):
+        """Raise validation error if can`t teach."""
+        if lesson_datetime[0].strftime("%A").lower() not in self.work_days:
+            raise ValidationError(
+                'Teacher can`t work in this day'
+            )
+
+        new_queryset = []
+        for event in queryset:
+            if event.teacher == self:
+                new_queryset.append(event.date_time)
+        
+        new_queryset += self.extra_busy_dates
+
+        print(new_queryset)
+        if datetimes_intersect(
+            lesson_datetime, new_queryset, max_intrsects_count=2,
+        ):
+            raise ValidationError('Teacher is already busy at this time.')
+
+    def clean(self) -> None:
+        if bool(self.business_trip_start) != bool(self.business_trip_end):
+            raise ValidationError(
+                'Both trip`s of start and end must be selected'
+            )
+
+        if bool(self.vacation_start) != bool(self.vacation_end):
+            raise ValidationError(
+                'Both vocation`s of start and end must be selected'
+            )
+
+        if self.business_trip_start:
+            if self.business_trip_start >= self.business_trip_end:
+                raise ValidationError(
+                    'Start of trip must be before end of trip date'
+                )
+
+        if self.vacation_start:
+            if self.vacation_start >= self.vacation_end:
+                raise ValidationError(
+                    'Start of vocation must be before end of vocation date'
+                )
+
+    @property
+    def extra_busy_dates(self) -> list[tuple[datetime, datetime]]:
+        dates = []
+        result = []
+
+        dates.append((self.vacation_start, self.vacation_end))
+        dates.append((self.business_trip_start, self.business_trip_end))
+
+        for d in dates:
+
+            result.append((
+                datetime(d[0].year, d[0].month, d[0].day),
+                datetime(d[1].year, d[1].month, d[1].day)  
+            ))
+
+        return result
 
 class Methodist(RoleModel):
     can_edit_timetable = True
@@ -176,11 +260,18 @@ class Methodist(RoleModel):
 class ClassRoom(models.Model):
     number = models.CharField("Аудитория", max_length=128, unique=True)
 
-    def is_free(self, dt:datetime) -> tuple[bool, str]:
-        #TODO
-        is_free = True
-        msg = 'OK'
-        return is_free, msg
+    def is_free(self, queryset, lesson_datetime:datetime):
+        "Raise validation error if classroom not is free"
+        new_queryset = []
+        for event in queryset:
+            if event.classroom == self:
+                new_queryset.append(event.date_time)
+
+        print(new_queryset)
+        if datetimes_intersect(
+            lesson_datetime, new_queryset, max_intrsects_count=2,
+        ):
+            raise ValidationError('Room is not free at this time.')
 
     def __str__(self) -> str:
         return self.number
@@ -231,12 +322,19 @@ class Lesson(EventModel):
         default=SubGroupChoices.ALL,
     )
 
+    def clean(self):
+        queryset = self.get_events_queryset()
+        dt = self.date_time
+
+        self.validate_day()
+        self.validate_groups(queryset, dt, self.subgroup)
+        self.validate_classroom(queryset, dt)
+        self.validate_teacher(queryset, dt)
+
 class Activity(EventModel):
     name = models.CharField(
         "Наименование мероприятия",
         max_length=150,
-        null=True,
-        blank=True,
     )
     describe = models.TextField(
         "Описание мероприятия",
@@ -265,6 +363,22 @@ class Activity(EventModel):
         blank=True,
         null=True,
     )
+
+    def clean(self):
+        queryset = self.get_events_queryset()
+        dt = self.date_time
+
+        self.validate_day()
+        self.validate_groups(queryset, dt)
+
+        if self.teacher:
+            self.validate_teacher(queryset, dt)
+
+        if self.classroom:
+            self.validate_classroom(queryset, dt)
+
+    def __str__(self) -> str:
+        return self.name
 
     class Meta:
         verbose_name_plural = 'Activities'

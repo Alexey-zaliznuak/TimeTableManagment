@@ -34,6 +34,7 @@ class UserRelatedAdmin(admin.ModelAdmin):
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     list_display = (
+        'pk',
         'name',
     )
 
@@ -41,6 +42,7 @@ class GroupAdmin(admin.ModelAdmin):
 @admin.register(Student)
 class StudentAdmin(UserRelatedAdmin):
     list_display = (
+        'pk',
         'full_name',
         'group_name',
         'user_full_name',
@@ -62,6 +64,7 @@ class StudentAdmin(UserRelatedAdmin):
 @admin.register(Teacher)
 class TeacherAdmin(UserRelatedAdmin):
     list_display = (
+        'pk',
         'full_name',
         'work_days',
         'user_full_name',
@@ -71,6 +74,7 @@ class TeacherAdmin(UserRelatedAdmin):
 @admin.register(Methodist)
 class MethodistAdmin(UserRelatedAdmin):
     list_display = (
+        'pk',
         'full_name',
         'user_full_name',
 )
@@ -79,6 +83,7 @@ class MethodistAdmin(UserRelatedAdmin):
 @admin.register(ClassRoom)
 class ClassRoomAdmin(UserRelatedAdmin):
     list_display = (
+        'pk',
         'number',
 )
 
@@ -86,6 +91,7 @@ class ClassRoomAdmin(UserRelatedAdmin):
 @admin.register(LessonType)
 class LessonTypeAdmin(admin.ModelAdmin):
     list_display = (
+        'pk',
         'name',
 )
 
@@ -93,7 +99,7 @@ class LessonTypeAdmin(admin.ModelAdmin):
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     list_display = (
-        'lesson',
+        'pk',
         'lesson_type',
         'groups_list',
         'teacher_link',
@@ -113,10 +119,6 @@ class LessonAdmin(admin.ModelAdmin):
     list_filter = ('start_time','classroom',)
     empty_value_display = '-отсутствует-'
 
-    # костыль, убрать когда буду делать отедльно лабы лекйии и т.п
-    # просто чтобы было поле как раз для ссылки на сам урок
-    def lesson(self, obj):
-        return "Занятие"
 
     def teacher_link(self, obj):
         return object_url(obj.teacher)
@@ -131,6 +133,7 @@ class LessonAdmin(admin.ModelAdmin):
 @admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):
     list_display = (
+        'pk',
         'name',
         'describe',
         'groups_list',
@@ -152,8 +155,6 @@ class ActivityAdmin(admin.ModelAdmin):
     list_filter = ('start_time','classroom',)
     empty_value_display = '-отсутствует-'
 
-    # костыль, убрать когда буду делать отедльно лабы лекйии и т.п
-    # просто чтобы было поле как раз для ссылки на сам урок
     def teacher_link(self, obj):
         teacher = obj.teacher
         if teacher:
